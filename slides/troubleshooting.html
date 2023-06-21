@@ -34,9 +34,9 @@
                 <img alt="" class="fragment" src="troubleshooting/monolith.png">
             </section>
             <section>
-                <h3>1.2 mil lines of code</h3> <br>
-                <h3>Tens of modules</h3><br>
-                <h3>Multiple teams</h3>
+                <h3 class="fragment">1.2 mil lines of code</h3> <br>
+                <h3 class="fragment">Tens of functional modules</h3><br>
+                <h3 class="fragment">Multiple teams</h3>
             </section>
         </section>
         <section>
@@ -66,7 +66,7 @@
         </section>
         <section>
             <h1>MDC</h1>
-            <div><strong>M</strong>ethod <strong>D</strong>iagnostic <strong>C</strong>ontext</div>
+            <div><strong>M</strong>apped <strong>D</strong>iagnostic <strong>C</strong>ontext</div>
             <div class="fragment">
                     <pre>
                         <code class="hljs language-java" data-trim>
@@ -109,14 +109,14 @@ logging.pattern.console=%d{HH:mm:ss.SSS} [USER_ID=%X{USER_ID}][%t] %-5level %log
             <div class="fragment">
                 <pre>
                     <code class="hljs language-java" data-trim>
-                        logger.info("Registering transaction with name=" + name + ", debitAmount=" + debitAmount + ", type=" + type);
+                        logger.debug("Registering transaction with name=" + name + ", debitAmount=" + debitAmount + ", type=" + type);
                     </code>
                 </pre>
             </div>
             <div class="fragment">
                 <pre>
                     <code class="hljs language-java" data-trim>
-                         logger.info("Registering transaction with name={}, debitAmount={}, type={}", name, debitAmount, type);
+                         logger.debug("Registering transaction with name={}, debitAmount={}, type={}", name, debitAmount, type);
                     </code>
                 </pre>
             </div>
@@ -207,6 +207,7 @@ INFO 22892 --- [USER_ID=test][nio-8080-exec-1] c.k.t.TroubleshootingApplication 
                                     ...
                                 } catch (Exception e) {
                                     logger.error("Error happened during operation!");
+                                    throw e;
                                 }
                     </code>
                 </pre>
@@ -319,8 +320,9 @@ INFO 22892 --- [USER_ID=test][nio-8080-exec-1] c.k.t.TroubleshootingApplication 
             <h3>Your custom metrics</h3>
         </section>
         <section>
+            <h3>Counter</h3>
                 <pre>
-                    <code class="hljs language-java" data-trim>
+                    <code class="hljs language-java" data-trim data-line-numbers="3-6,10">
                 MeterRegistry registry;
 
                 Counter counter = Counter.builder("transaction.registrations")
@@ -333,6 +335,19 @@ INFO 22892 --- [USER_ID=test][nio-8080-exec-1] c.k.t.TroubleshootingApplication 
                         counter.increment(1.0);
                         ...
                     }</code>
+                </pre>
+        </section>
+        <section>
+            <h3>Gauge</h3>
+                <pre>
+                    <code class="hljs language-java" data-trim data-line-numbers="4-6">
+                MeterRegistry registry;
+                List currencyRatesCache;
+
+                Gauge gauge = Gauge
+                                .builder("currency.cache.size", currencyRatesCache, List::size)
+                                .register(registry);
+                    </code>
                 </pre>
         </section>
         <section>
@@ -477,6 +492,8 @@ public GenericContainer redis = new GenericContainer(DockerImageName.parse("redi
         <!--        </section>-->
         <section>
             <h1>Thank you!</h1>
+
+            <div>Slides: bit.ly/koga-troubleshooting</div>
             <p>
                 Konrad Gabara
             </p>
