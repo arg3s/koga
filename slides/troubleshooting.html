@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
+
+    <title>Troubleshooting made easy</title>
+
+    <link href="dist/reset.css" rel="stylesheet">
+    <link href="dist/reveal.css" rel="stylesheet">
+    <link href="dist/theme/blood.css" rel="stylesheet">
+
+    <!-- Theme used for syntax highlighted code -->
+    <link href="plugin/highlight/monokai.css" rel="stylesheet">
+</head>
+
+<body>
+<div class="reveal">
+    <div class="slides">
+        <section>
+            <h1>Troubleshooting</h1>
+            <h2>made easy</h2>
+            <h5>or not...?</h5>
+            <p>
+                Konrad Gabara
+            </p>
+        </section>
+
+        <section>
+            <section>
+                <h1>Example One</h1>
+                <h2 class="fragment">Monolith</h2>
+                <img alt="" class="fragment" src="troubleshooting/monolith.png">
+            </section>
+            <section>
+                <h3>1.2 mil lines of code</h3> <br>
+                <h3>Tens of modules</h3><br>
+                <h3>Multiple teams</h3>
+            </section>
+        </section>
+        <section>
+            <h1>Bugfix tasks</h1>
+            <h2>Oh God, please no</h2>
+            <img alt="" class="fragment" src="troubleshooting/no-no-please.gif">
+        </section>
+        <section>
+            <h1>Context</h1>
+            <ol>
+                <li>Requests were authenticated</li>
+                <li>Each bug task had datetime of bug happening</li>
+                <li>Each bug task contained IDs of entities that were affected</li>
+            </ol>
+        </section>
+        <section>
+            <h1>Logs</h1>
+            <h2 class="fragment">to the rescue</h2>
+        </section>
+        <section>
+            <h2>How to start?</h2>
+            <ol class="fragment">
+                <li><strong class="grow">Requests were authenticated</strong></li>
+                <li>Each bug task had datetime of bug happening</li>
+                <li>Each bug task contained IDs of entities that were affected</li>
+            </ol>
+        </section>
+        <section>
+            <h1>MDC</h1>
+            <div><strong>M</strong>ethod <strong>D</strong>iagnostic <strong>C</strong>ontext</div>
+            <div class="fragment">
+                    <pre>
+                        <code class="hljs language-java" data-trim>
+
+                                import org.slf4j.MDC;
+
+                                public void setUpMdc(Long userId) {
+                                    MDC.put("USER_ID", userId.toString());
+                                }
+                        </code>
+                    </pre>
+            </div>
+
+            <div class="fragment">
+                <span>application.properties</span>
+                <pre>
+                    <code class="hljs" data-trim>
+logging.pattern.console=%d{HH:mm:ss.SSS} [USER_ID=%X{USER_ID}][%t] %-5level %logger{36} - %msg%n
+                    </code>
+                </pre>
+            </div>
+        </section>
+        <section>
+                    <pre>
+                        <code class="hljs language-bash" data-trim>
+                    2023-06-20T10:59:31.340+02:00  INFO 22892 --- [USER_ID=test][nio-8080-exec-1] c.k.t.TroubleshootingApplication         : invoked /hello
+                        </code>
+                    </pre>
+        </section>
+        <section>
+            <img alt="" class="fragment" src="troubleshooting/splunk.png">
+            <div class="fragment">
+                <br>
+                <div>Automatic tokenizing based on K=V pattern</div>
+                <div>Query language</div>
+            </div>
+        </section>
+        <section>
+            <h1>Placeholders</h1>
+            <div class="fragment">
+                <pre>
+                    <code class="hljs language-java" data-trim>
+                        logger.info("Registering transaction with name=" + name + ", debitAmount=" + debitAmount + ", type=" + type);
+                    </code>
+                </pre>
+            </div>
+            <div class="fragment">
+                <pre>
+                    <code class="hljs language-java" data-trim>
+                         logger.info("Registering transaction with name={}, debitAmount={}, type={}", name, debitAmount, type);
+                    </code>
+                </pre>
+            </div>
+        </section>
+        <section>
+            <h1>Logging objects</h1>
+            <br>
+            <div class="fragment">
+                <pre>
+                    <code class="hljs language-java" data-trim>
+                         logger.info("Registered transaction={}", transaction);
+                    </code>
+                </pre>
+            </div>
+        </section>
+        <section>
+            <h2>What will be the result of this log?</h2>
+            <br>
+            <div>
+                <pre>
+                    <code class="hljs language-java" data-trim>
+                         logger.info("Registered transaction={}", transaction);
+                    </code>
+                </pre>
+            </div>
+            <br>
+            <h3 class="fragment">It depends :D</h3>
+        </section>
+        <section>
+            <h3 class="fragment">Depends on toString() implementation of transaction object</h3>
+            <pre class="fragment">
+                <code class="hljs language-bash" data-trim>
+INFO 22892 --- [USER_ID=test][nio-8080-exec-1] c.k.t.TroubleshootingApplication         : Registered transaction=com.something.DomesticTransaction@42fa
+                </code>
+            </pre>
+            <pre class="fragment">
+                <code class="hljs language-bash " data-trim>
+INFO 22892 --- [USER_ID=test][nio-8080-exec-1] c.k.t.TroubleshootingApplication         : Registered transaction=Transaction(type=Domestic, name="Test", debitAmount=12.50,
+                                                                                          debitAccount=Account(id=123, type=Debit), creditAccount=Account(id=125, type=Credit))
+                </code>
+            </pre>
+        </section>
+        <section>
+            <h2>Logging objects continued</h2>
+            <h3>What will be the result of this log?</h3>
+            <div>
+                <pre>
+                    <code class="hljs language-java" data-trim>
+                         logger.info("Registered transaction={}", transaction);
+                    </code>
+                </pre>
+            </div>
+            <div class="fragment">Let's assume we're in JPA+Hibernate environment :)</div>
+            <br><br>
+            <div class="fragment">It depends... :D</div>
+        </section>
+        <section>
+            <h2>Logging objects continued</h2>
+            <h3>What will be the result of this log?</h3>
+            <div>
+                <pre>
+                    <code class="hljs language-java" data-trim>
+                         logger.info("Registered transaction={}", transaction);
+                    </code>
+                </pre>
+            </div>
+            <pre class="fragment">
+                    <code class="hljs language-java" data-trim>
+ERROR 22892 --- [USER_ID=test][nio-8080-exec-1] c.k.t.TroubleshootingApplication        : Exception in thread "main" org.hibernate.LazyInitializationException:
+                                                                                          could not initialize proxy - no Session
+                    </code>
+            </pre>
+            <pre class="fragment">
+                <code class="hljs language-bash " data-trim>
+INFO 22892 --- [USER_ID=test][nio-8080-exec-1] c.k.t.TroubleshootingApplication         : Registered transaction=Transaction(type=Domestic, name="Test", debitAmount=12.50,
+                                                                                          debitAccount=Account(id=123, type=Debit), creditAccount=Account(id=125, type=Credit))
+                </code>
+            </pre>
+
+            <h4 class="fragment">Depends whether we're in transaction or not</h4>
+        </section>
+        <section>
+            <h1>Exception logging</h1>
+            <div class="fragment">
+                <pre>
+                    <code class="hljs language-java" data-trim>
+                                try {
+                                    ...
+                                } catch (Exception e) {
+                                    logger.error("Error happened during operation!");
+                                }
+                    </code>
+                </pre>
+            </div>
+            <div class="fragment">
+                <pre>
+                    <code class="hljs language-java" data-trim>
+                                try {
+                                    ...
+                                } catch (Exception e) {
+                                    logger.error("Error happened during operation!", e);
+                                }
+                    </code>
+                </pre>
+            </div>
+        </section>
+        <section>
+            <h1>ELK</h1>
+            <div><strong>E</strong>lasticSearch <strong>L</strong>ogstash <strong>K</strong>ibana</div>
+            <img alt="" class="fragment" height="150" src="troubleshooting/elastic.png">
+            <h3>
+                <a class="fragment"
+                   href="https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html">Read more in
+                    the docs</a>
+            </h3>
+        </section>
+
+        <section>
+            <section>
+                <h1>Example Two</h1>
+                <h2>Microservices</h2>
+            </section>
+            <section>
+                <h1>Assumptions</h1>
+                <h3>Properly separated domains</h3>
+                <img alt="" class="fragment" src="troubleshooting/microservices.jpg">
+
+                <br>
+                <a href="https://www.google.com/url?sa=i&url=https%3A%2F%2Ftwitter.com%2Fddprrt%2Fstatus%2F1425418538257428488&psig=AOvVaw2oEAgkLP4VsflfUDFcrLV1&ust=1687356061244000&source=images&cd=vfe&ved=0CBEQjRxqFwoTCOCIw6yB0v8CFQAAAAAdAAAAABAD">Source</a>
+            </section>
+            <section>
+                <h3>Running in cloud environment</h3>
+                <img alt="" class="fragment" src="troubleshooting/microservices-cloud.png">
+            </section>
+            <section>
+                <h3>Multiple instances running in different zones</h3>
+                <img alt="" class="fragment" src="troubleshooting/microservices-instances.png">
+            </section>
+        </section>
+        <section>
+            <h1>How do we troubleshoot that?</h1>
+            <h2 class="fragment">How do we know what is actually going on in our system?</h2>
+        </section>
+        <section>
+            <h1>Metrics</h1>
+            <h2 class="fragment">to the rescue!</h2>
+        </section>
+        <section>
+            <h2>But what are metrics?</h2>
+            <blockquote>A software metric is a standard of measure of a degree to which a software system or process
+                possesses some property. - Wikipedia
+            </blockquote>
+            <br>
+        </section>
+        <section>
+            <h2>Your usual Metrics stack</h2>
+            <img alt="" height="200" src="troubleshooting/micrometer.png" width="350">
+            <img alt="" height="200" src="troubleshooting/graphite.webp" width="350">
+            <img alt="" height="200" src="troubleshooting/grafana.png" width="350">
+        </section>
+        <section>
+            <h3>Okay then, what metrics can we gather?</h3>
+        </section>
+        <section>
+            <h3>JVM stats</h3>
+            <ul>
+                <li>Memory usage</li>
+                <li>Threads stats</li>
+                <li>GC stats</li>
+            </ul>
+            <br>
+            <img alt="" height="500" src="troubleshooting/jvm-memory.png">
+            <br>
+            <br>
+            <br>
+            <a href="https://user-images.githubusercontent.com/1335137/42232022-6f40dfd0-7eaa-11e8-8607-506ac58f9105.png">Source</a>
+        </section>
+        <section>
+            <h4>Database stats</h4>
+            <ul>
+                <li>Connections</li>
+                <li>Disk quota</li>
+                <li>Memory stats</li>
+            </ul>
+        </section>
+        <section>
+            <h4>Application stats</h4>
+            <ul>
+                <li>Http stats</li>
+                <ul>
+                    <li>Requests count</li>
+                    <li>Failed requests count</li>
+                    <li>Endpoint stats /success /failures</li>
+                </ul>
+                <li>Health of your instances</li>
+                <li>Your custom metrics</li>
+            </ul>
+        </section>
+        <section>
+            <h3>Your custom metrics</h3>
+        </section>
+        <section>
+                <pre>
+                    <code class="hljs language-java" data-trim>
+                MeterRegistry registry;
+
+                Counter counter = Counter.builder("transaction.registrations")
+                                .tag("type", "Domestic")
+                                .description("The number of domestic transactions registered")
+                                .register(registry);
+
+                public Transaction register(...) {
+                        ...
+                        counter.increment(1.0);
+                        ...
+                    }</code>
+                </pre>
+        </section>
+        <section>
+            <h1>Is that enough?</h1>
+            <h2 class="fragment">Well, not really</h2>
+        </section>
+        <section>
+            <h2>Troubleshooting communication</h2>
+        </section>
+        <section>
+            <h1>Distributed tracing</h1>
+            <h2 class="fragment">to the rescue!</h2>
+        </section>
+        <section>
+            <h3>MDC</h3>
+            <div class="fragment fade-in-then-out">
+                    <pre>
+                        <code class="hljs language-java" data-trim>
+
+                                import org.slf4j.MDC;
+
+                                public void setUpMdc(Long userId) {
+                                    MDC.put("USER_ID", userId.toString());
+                                }
+                        </code>
+                    </pre>
+            </div>
+            <div class="fragment">
+                    <pre>
+                        <code class="hljs language-java" data-trim>
+                                import org.slf4j.MDC;
+
+                                public void setUpMdc(UUID traceId) {
+                                    MDC.put("traceId", traceId.toString());
+                                }
+                    </code>
+                    </pre>
+            </div>
+            <div class="fragment">
+                <span>application.properties</span>
+                <pre>
+                    <code class="hljs" data-trim>
+logging.pattern.console=%d{HH:mm:ss.SSS} [traceId=%X{traceId}][%t] %-5level %logger{36} - %msg%n
+                    </code>
+                </pre>
+            </div>
+            <pre class="fragment">
+                <code class="hljs language-bash" data-trim>
+                    2023-06-20T10:59:31.240+02:00  INFO 34121 --- [traceId=72607c4f5ce9][nio-8080-exec-4] c.k.t.OtherApplication                   : sending hello
+                    2023-06-20T10:59:31.340+02:00  INFO 22892 --- [traceId=72607c4f5ce9][nio-8080-exec-1] c.k.t.TroubleshootingApplication         : invoked /hello
+                </code>
+            </pre>
+        </section>
+        <section>
+            <span>pre-Spring Boot 3.1</span>
+            <h3>Spring Cloud Sleuth</h3>
+            <span>post-Spring Boot 3.1</span>
+            <h3>Micrometer-metrics</h3>
+            <a href="https://github.com/micrometer-metrics/tracing/wiki/Spring-Cloud-Sleuth-3.1-Migration-Guide">Link to
+                migration README from Spring Cloud Sleuth to Micrometer</a>
+        </section>
+
+        <section>
+            <h3>We narrowed down the root cause of problem</h3>
+            <h4>What next?</h4>
+        </section>
+        <section>
+            <h1>Tests</h1>
+        </section>
+        <section>
+            <h3>Ideally, for each bug</h3>
+            <h3>you should be able to write a test</h3>
+            <h3 class="fragment highlight-red">that fails</h3>
+            <h3 class="fragment highlight-green">and then is green</h3>
+        </section>
+        <section>
+            <h2>Integration tests</h2>
+            <ul>
+                <li><a href="https://java.testcontainers.org/">Testcontainers</a></li>
+                <li><a href="https://spring.io/projects/spring-cloud-contract">Contract testing</a></li>
+                <li>e2e tests (for main functionality)</li>
+            </ul>
+        </section>
+        <section>
+            <h3>Testcontainers</h3>
+            <div class="fragment">Add dependency to your classpath</div>
+            <div class="fragment">Integrated with Junit and Spock</div>
+            <div class="fragment">
+                <pre>
+                    <code class="hljs language-java" data-trim>
+@Container
+public GenericContainer redis = new GenericContainer(DockerImageName.parse("redis:5.0.3-alpine"))
+    .withExposedPorts(6379);
+                    </code>
+                </pre>
+            </div>
+            <div class="fragment">
+                <ul>
+                    <li>Databases</li>
+                    <li>Kafka</li>
+                    <li>LocalStack (AWS)</li>
+                    <li>Solr/ElasticSearch</li>
+                    <li>RabbitMQ</li>
+                    <li>any many more...</li>
+                </ul>
+            </div>
+        </section>
+        <section>
+            <h3>Contract testing</h3>
+            <blockquote>[...] Their main idea is to give you very fast feedback, without the need to set up the whole world of microservices.</blockquote>
+        </section>
+
+        <section>
+            <section>
+                <h1>TL;DR</h1>
+                <ul>
+                    <li>Observability</li>
+                    <ul>
+                        <li>Logs</li>
+                        <li>Metrics</li>
+                        <li>Tracing</li>
+                    </ul>
+                    <li>Tests</li>
+                </ul>
+            </section>
+            <section class="hidden">
+                <h1 class="fragment">Extras</h1>
+            </section>
+        </section>
+
+        <section>
+            <blockquote cite="Gandalf the Gray">All we have to decide is what to do with the time that is given us. -
+                Gandalf the Gray
+            </blockquote>
+        </section>
+
+        <!--        <section>-->
+        <!--            Reactive MDC-->
+        <!--            Interceptors-->
+        <!--            Context propagation bridging - -->
+        <!--            https://spring.io/blog/2023/03/30/context-propagation-with-project-reactor-3-unified-bridging-between-reactive-->
+        <!--        </section>-->
+        <section>
+            <h1>Thank you!</h1>
+            <p>
+                Konrad Gabara
+            </p>
+        </section>
+    </div>
+</div>
+
+<script src="dist/reveal.js"></script>
+<script src="plugin/highlight/highlight.js"></script>
+<script>
+    Reveal.initialize({
+        hash: true,
+        plugins: [RevealHighlight],
+        width: 2500,
+        margin: 0.03,
+        transition: 'fade',
+        progress: true,
+        controls: true,
+        center: true,
+    });
+</script>
+
+</body>
+
+</html>

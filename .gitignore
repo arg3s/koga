@@ -1,0 +1,6 @@
+/slides/node_modules/
+/**/node_modules
+.idea/
+*.iml
+*.iws
+*.eml
